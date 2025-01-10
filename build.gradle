@@ -11,7 +11,11 @@ repositories {
 
 sourceSets {
 	main
-	jmh
+	jmh {
+//		java.srcDirs += test.java.srcDirs
+		compileClasspath += main.runtimeClasspath
+		compileClasspath += test.runtimeClasspath
+	}
 }
 
 configurations {
@@ -20,7 +24,21 @@ configurations {
 	}
 }
 
+task jmh(type: JavaExec, dependsOn: jmhClasses) {
+	mainClass = 'org.openjdk.jmh.Main'
+	classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
+	args << "l"
+}
+
+classes.finalizedBy(jmhClasses)
+
 dependencies {
+	jmhImplementation('org.openjdk.jmh:jmh-core:1.37')
+	jmhImplementation('org.openjdk.jmh:jmh-generator-annprocess:1.37')
+//	jmhImplementation('org.openjdk.jmh:jmh-generator-reflection:1.37')
+
+	jmhAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+
 	testImplementation platform('org.junit:junit-bom:5.10.0')
 	testImplementation 'org.junit.jupiter:junit-jupiter'
 }
