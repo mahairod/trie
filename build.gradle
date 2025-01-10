@@ -1,0 +1,30 @@
+plugins {
+	id 'java'
+}
+
+group = 'io.elliptica'
+version = '1.0-SNAPSHOT'
+
+repositories {
+	mavenCentral()
+}
+
+sourceSets {
+	main
+	jmh
+}
+
+configurations {
+	jmhImplementation {
+		extendsFrom(implementation)
+	}
+}
+
+dependencies {
+	testImplementation platform('org.junit:junit-bom:5.10.0')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+	useJUnitPlatform()
+}
