@@ -11,10 +11,12 @@
 package ru.elliptica.collections;
 
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
+import ru.elliptica.collections.Trie.TrieIndexVersion;
+import ru.elliptica.collections.Trie.VocVersion;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -22,20 +24,43 @@ import java.util.concurrent.TimeUnit;
  * @author Антон А. Астафьев {@literal <anton@astafiev.me>} (Anton A. Astafiev)
  * @version 0.2 (2025)
  */
-@State(Scope.Thread)
-@Fork(value = 1, warmups = 2)
+@State(Scope.Group)
+@Fork(value = 1, warmups = 1)
 @Threads(Threads.MAX)
-@Timeout(time = 15, timeUnit = TimeUnit.SECONDS)
+@Timeout(time = 60, timeUnit = TimeUnit.SECONDS)
 @BenchmarkMode(Mode.Throughput)
+@Warmup(time = 1, iterations = 2)
+@Measurement(time = 1, iterations = 7)
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@CompilerControl(CompilerControl.Mode.INLINE)
 public class TrieBench {
-	StringTrie tr;
 	List<String> words;
 	Set<String> wordMapReady;
 	Set<String> wordMapFresh;
 
-	@Setup
-	public void setUp() {
-		tr = new StringTrie(Words.POSSIBLE_TRUE_VALS);
+	@State(Scope.Group)
+	public static class Plan {
+		Trie tr;
+
+		@Param({ "COMPUTED_FULL_IND", "COMPUTED_NOCOND_IND", "CACHED"})
+		public VocVersion vocab = VocVersion.COMPUTED_NOCOND_IND;
+
+		@Param({ "FLAT", "COMPRESSED"})
+		public TrieIndexVersion index = TrieIndexVersion.FLAT;
+
+		@Setup(Level.Trial)
+		@Group("TrieSearch")
+		public void setUp(TrieBench bench) {
+			bench.words = List.of(Words.POSSIBLE_TRUE_VALS);
+			switch (index) {
+				case FLAT -> tr = new Trie(Words.POSSIBLE_TRUE_VALS, vocab);
+				case COMPRESSED -> tr = new CompressedTrie(Words.POSSIBLE_TRUE_VALS, vocab);
+			}
+		}
+	}
+
+	@Setup(Level.Iteration)
+	public void setUp(Blackhole blackhole) {
 		words = List.of(Words.POSSIBLE_TRUE_VALS);
 		wordMapReady = new HashSet<>(words);
 		wordMapFresh = new HashSet<>();
@@ -46,24 +71,26 @@ public class TrieBench {
 	}
 
 	@Benchmark
-	@GroupThreads(1)
+	@GroupThreads(3)
 	@Group("TrieSearch")
-	public void benchTrieSearchCycle() {
-		tr.containsAll(words);
+	@Warmup(time = 1, iterations = 5)
+	@Measurement(time = 1, iterations = 15)
+	public void benchTrieSearchCycle(Blackhole blackhole, Plan plan) {
+		blackhole.consume(plan.tr.containsAllStrings(words));
 	}
 
 	@Benchmark
-	@GroupThreads(1)
+	@GroupThreads(2)
 	@Group("HashReady")
-	public void benchHashReadySearchCycle() {
-		wordMapReady.containsAll(words);
+	public void benchHashReadySearchCycle(Blackhole blackhole) {
+		blackhole.consume(wordMapReady.containsAll(words));
 	}
 
 	@Benchmark
-	@GroupThreads(1)
+	@GroupThreads(2)
 	@Group("HashFresh")
-	public void benchHashFreshSearchCycle() {
-		wordMapFresh.containsAll(words);
+	public void benchHashFreshSearchCycle(Blackhole blackhole) {
+		blackhole.consume(wordMapFresh.containsAll(words));
 	}
 
 }

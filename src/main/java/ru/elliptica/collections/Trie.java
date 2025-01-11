@@ -23,19 +23,39 @@ public class Trie {
 		final byte[] index;
 		final BitSet[] shortCutMasks;
 		final int bucketSize;
-		final String vocabulary;
+		final char[] vocabulary;
 		final int stopNodeIndex;
+//		final int stopOffset;
+		final BitIndex vocIndex;
+		final int STOP_SYMB_POS;
 
 		public Index(byte[] index, BitSet[] shortCutMasks, int bucketSize, String vocabulary, int stopNodeIndex) {
 			this.index = index;
 			this.shortCutMasks = shortCutMasks;
 			this.bucketSize = bucketSize;
-			this.vocabulary = vocabulary;
+			this.vocabulary = vocabulary.toCharArray();
 			this.stopNodeIndex = stopNodeIndex;
+//			this.stopOffset =  stopNodeIndex * bucketSize;
+			this.STOP_SYMB_POS = vocabulary.indexOf(STOP_SYMB);
+			vocIndex = switch (indexVersion) {
+				case CACHED -> new BitIndexCached(vocabulary);
+				case COMPUTED_FULL_IND -> new BitIndexComp(vocabulary);
+				case COMPUTED_NOCOND_IND -> new BitIndexCompNocond(vocabulary);
+				default -> null;
+			};
 		}
 	}
 
-	private Index indexData;
+	public enum VocVersion {
+		COMPUTED_FULL_IND, COMPUTED_COMPACT_IND, COMPUTED_NOCOND_IND, CACHED
+	}
+
+	public enum TrieIndexVersion {
+		FLAT, COMPRESSED
+	}
+
+	protected final Index indexData;
+	private VocVersion indexVersion = VocVersion.COMPUTED_NOCOND_IND;
 
 	private static final char STOP_SYMB = '$';
 
@@ -45,7 +65,7 @@ public class Trie {
 	private int numberOfWords = 0;
 
 	// multi-thread
-	boolean isSyncEnabled = false;
+	final boolean isSyncEnabled = false;
 	volatile boolean inIndexRebuildNow;
 	private final Object updateGuard = new Object();
 
@@ -55,13 +75,25 @@ public class Trie {
 		this(keywords, false);
 	}
 
-	protected Trie(String[] keywords, boolean skipIndex) {
-		updateTreeImpl(Arrays.asList(keywords));
-		if (skipIndex)
-			return;
+	public Trie(String[] keywords, VocVersion version) {
+		this(keywords, false, version);
+		System.out.println("Trie version " + version);
+	}
 
-		buildIndexImpl();
-		cleanAfterBuild();
+	protected Trie(String[] keywords, boolean skipIndex) {
+		this(keywords, skipIndex, VocVersion.COMPUTED_NOCOND_IND);
+	}
+
+	protected Trie(String[] keywords, boolean skipIndex, VocVersion version) {
+		updateTreeImpl(Arrays.asList(keywords));
+		if (skipIndex) {
+			indexData = null;
+			return;
+		}
+		indexVersion = version;
+
+		indexData = buildIndexImpl();
+//		cleanAfterBuild();
 	}
 
 	protected void updateTreeImpl(Collection<String> keywords) {
@@ -106,13 +138,22 @@ public class Trie {
 
 	public boolean contains(String value) {
 		Objects.nonNull(value);
-		if (value.isEmpty())
-			return false;
+//		if (value.isEmpty())
+//			return false;
 
-		if (isIndexPresent())
+		if (true || isIndexPresent())
 			return containsIndex(value);
 		else
 			return containsTree(value);
+	}
+
+	public final boolean containsAllStrings(Collection<String> c) {
+		for (String str: c) {
+			if (!contains(str)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public int size() {
@@ -136,21 +177,32 @@ public class Trie {
 	}
 
 	protected boolean containsIndex(String value) {
-		Index data = indexData;
-		value += STOP_SYMB;
+		final Index data = indexData;
+		final int vallen = value.length();
+
 		// start from root
 		int nodeOffset = 0;
-		final String vocabulary = data.vocabulary;
+		final BitIndex vocIndex = data.vocIndex;
 		final byte[] index = data.index;
-		for (final char c : value.toCharArray()) {
-			int chInd = 1 + vocabulary.indexOf(c);
-			byte nextNode = index[nodeOffset + chInd];
-			if (nextNode == 0) {
+		byte curNode = 0;
+		for (int i = 0; i < vallen; i++) {
+			char c = value.charAt(i);
+			int chInd = 1 + vocIndex.position(c);
+
+			curNode = index[nodeOffset + chInd];
+			if (curNode == 0) {
 				return false;
 			}
-			nodeOffset = nextNode * data.bucketSize;
+			nodeOffset = curNode * data.bucketSize;
 		}
-		return data.stopNodeIndex * data.bucketSize == nodeOffset;
+		{
+			byte nextNode = index[nodeOffset + data.STOP_SYMB_POS + 1];
+			return data.stopNodeIndex == nextNode;
+		}
+	}
+
+	private int vocIndex(char[] symbols, char patt) {
+		return Arrays.binarySearch(symbols, patt);
 	}
 
 	protected void updateStrings(Collection<String> replaceStrings) {
@@ -189,9 +241,7 @@ public class Trie {
 		return res;
 	}
 
-	private void buildIndexImpl() {
-		Set<Character> chars = new TreeSet<>();
-		final List<Node> orderedNodes = new ArrayList<>();
+	protected String collectNodeData(List<Node> orderedNodes, Set<Character> chars) {
 		{
 			var allNodes = new IdentityHashMap<Node, Object>();
 			walkTree(START, n -> {
@@ -201,11 +251,16 @@ public class Trie {
 				chars.add(n.character);
 			});
 		}
-
-
 		StringBuilder sb = new StringBuilder(chars.size());
 		chars.forEach(sb::append);
 		String vocabulary = sb.toString();
+		return vocabulary;
+	}
+
+	protected Index buildIndexImpl() {
+		Set<Character> chars = new TreeSet<>();
+		final List<Node> orderedNodes = new ArrayList<>();
+		String vocabulary = collectNodeData(orderedNodes, chars);
 
 		int bucketSize = vocabulary.length() + 1;
 		int nodeCount = orderedNodes.size();
@@ -220,7 +275,7 @@ public class Trie {
 		for (Node n : orderedNodes) {
 			// 0th char index points to root, means: not present
 			index[nodeOffset] = 0;
-			BitSet mask = shortCutMasks[maskInd++] = new BitSet(bucketSize);
+			final BitSet mask = shortCutMasks[maskInd++] = new BitSet(bucketSize);
 			for (var entry : n.children.entrySet()) {
 				int chInd = 1 + vocabulary.indexOf(entry.getKey());
 				mask.set(chInd);
@@ -230,8 +285,9 @@ public class Trie {
 			nodeOffset += bucketSize;
 		}
 		inIndexRebuildNow = true;
-		indexData = new Index(index, shortCutMasks, bucketSize, vocabulary, stopNodeIndex);
+		Index indexVal = new Index(index, shortCutMasks, bucketSize, vocabulary, stopNodeIndex);
 		inIndexRebuildNow = false;
+		return indexVal;
 	}
 
 	Trie mergeSuff() {
@@ -307,7 +363,7 @@ public class Trie {
 
 	static class Node {
 		Node parent;
-		private HashMap<Character, Node> children;
+		HashMap<Character, Node> children;
 		final char character;
 
 		public Node(Node parent, char character) {
@@ -392,7 +448,7 @@ public class Trie {
 				int nodeOffs = nodePos - start;
 				indices.set(indices.size()-1, nodeOffs);
 				if (nextNode != data.stopNodeIndex) {
-					char symb = data.vocabulary.charAt(nodeOffs - 1);
+					char symb = data.vocabulary[nodeOffs - 1];
 					curCtx += (symb);
 					nodes.add(nextNode);
 					indices.add(0);

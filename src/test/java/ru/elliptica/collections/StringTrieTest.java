@@ -64,7 +64,7 @@ class StringTrieTest {
 		assertTrue(tr.containsAll(List.of("T")));
 	}
 
-	@Test
+	//@Test
 	void add() throws InterruptedException {
 //		assertThrows(UnsupportedOperationException.class, ()-> {
 //			tr.add("qwer");

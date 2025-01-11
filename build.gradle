@@ -24,13 +24,37 @@ configurations {
 	}
 }
 
-task jmh(type: JavaExec, dependsOn: jmhClasses) {
+task jmh(type: JavaExec, dependsOn: [jmhClasses,classes]) {
 	mainClass = 'org.openjdk.jmh.Main'
 	classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
-	args << "l"
+	args += ["-jvmArgsAppend",  "-server"]
 }
 
-classes.finalizedBy(jmhClasses)
+task jmhProf(type: JavaExec, dependsOn: [jmhClasses,classes]) {
+	workingDir = file("$buildDir/reports/profiling")
+	doFirst {
+		workingDir.mkdirs()
+	}
+	mainClass = 'org.openjdk.jmh.Main'
+	args += ["-prof", "jfr", "-jvmArgsAppend",  "-server"]
+
+	classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
+}
+
+compileJava {
+//	options.compilerArgs << ""
+}
+
+tasks.withType(JavaExec) {
+	jvmArgs += [
+		"--add-opens", "java.base/java.lang=ALL-UNNAMED",
+		"--add-opens", "java.base/java.util=ALL-UNNAMED"
+	]
+}
+
+classes {
+	finalizedBy(jmhClasses)
+}
 
 dependencies {
 	jmhImplementation('org.openjdk.jmh:jmh-core:1.37')
@@ -45,4 +69,8 @@ dependencies {
 
 test {
 	useJUnitPlatform()
+	jvmArgs += [
+		"--add-opens", "java.base/java.lang=ALL-UNNAMED",
+		"--add-opens", "java.base/java.util=ALL-UNNAMED"
+	]
 }

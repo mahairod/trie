@@ -27,6 +27,10 @@ public class StringTrie extends Trie implements Predicate<String>, Collection<St
 		super(keywords);
 	}
 
+	public StringTrie(String[] keywords, VocVersion vocVersion) {
+		super(keywords, vocVersion);
+	}
+
 	public StringTrie(String[] keywords, boolean caseSensitive) {
 		super(toStrings(keywords, caseSensitive ? UPCASE.KEEP : UPCASE.LOWER));
 		this.caseSensitive = caseSensitive;
@@ -86,7 +90,18 @@ public class StringTrie extends Trie implements Predicate<String>, Collection<St
 
 	@Override
 	public boolean containsAll(Collection<?> c) {
-		return delegate.containsAll(c);
+		for (Object o: c) {
+			if (o instanceof String) {
+				if (!contains( (String) o)) {
+					return false;
+				}
+			} else {
+				if (!contains(o)) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	@Override
