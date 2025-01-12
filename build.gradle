@@ -82,3 +82,7 @@ test {
 		"--add-opens", "java.base/java.util=ALL-UNNAMED"
 	]
 }
+
+wrapper {
+    gradleVersion = '8.7'
+}
