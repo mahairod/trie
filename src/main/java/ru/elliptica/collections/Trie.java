@@ -35,7 +35,6 @@ public class Trie {
 			this.bucketSize = bucketSize;
 			this.vocabulary = vocabulary.toCharArray();
 			this.stopNodeIndex = stopNodeIndex;
-//			this.stopOffset =  stopNodeIndex * bucketSize;
 			this.STOP_SYMB_POS = vocabulary.indexOf(STOP_SYMB);
 			vocIndex = switch (indexVersion) {
 				case CACHED -> new BitIndexCached(vocabulary);
@@ -77,7 +76,6 @@ public class Trie {
 
 	public Trie(String[] keywords, VocVersion version) {
 		this(keywords, false, version);
-		System.out.println("Trie version " + version);
 	}
 
 	protected Trie(String[] keywords, boolean skipIndex) {
@@ -93,7 +91,7 @@ public class Trie {
 		indexVersion = version;
 
 		indexData = buildIndexImpl();
-//		cleanAfterBuild();
+		cleanAfterBuild();
 	}
 
 	protected void updateTreeImpl(Collection<String> keywords) {
