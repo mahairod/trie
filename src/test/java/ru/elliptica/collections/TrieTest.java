@@ -101,4 +101,8 @@ class TrieTest {
 		}
 	}
 
+	@Test
+	void testBigWordList() {
+		assertFalse( trDefault.containsAllStrings(Words.loadStrings()) );
+	}
 }

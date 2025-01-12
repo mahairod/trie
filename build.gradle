@@ -11,10 +11,13 @@ repositories {
 
 sourceSets {
 	main
+	data
 	jmh {
-//		java.srcDirs += test.java.srcDirs
 		compileClasspath += main.runtimeClasspath
-		compileClasspath += test.runtimeClasspath
+		compileClasspath += data.runtimeClasspath
+	}
+	test {
+		compileClasspath += data.runtimeClasspath
 	}
 }
 
@@ -27,7 +30,10 @@ configurations {
 task jmh(type: JavaExec, dependsOn: [jmhClasses,classes]) {
 	mainClass = 'org.openjdk.jmh.Main'
 	classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
-	args += ["-jvmArgsAppend",  "-server"]
+	args += ["-jvmArgsAppend",  "-server",
+//			 "ru.elliptica.collections.TrieBench.benchTrieSearchVocab"
+	]
+//	debug = true
 }
 
 task jmhProf(type: JavaExec, dependsOn: [jmhClasses,classes]) {
@@ -40,6 +46,8 @@ task jmhProf(type: JavaExec, dependsOn: [jmhClasses,classes]) {
 
 	classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
 }
+
+testClasses.dependsOn(dataClasses)
 
 compileJava {
 //	options.compilerArgs << ""

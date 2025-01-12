@@ -139,7 +139,7 @@ public class Trie {
 //		if (value.isEmpty())
 //			return false;
 
-		if (true || isIndexPresent())
+		if (isIndexPresent())
 			return containsIndex(value);
 		else
 			return containsTree(value);
@@ -197,10 +197,6 @@ public class Trie {
 			byte nextNode = index[nodeOffset + data.STOP_SYMB_POS + 1];
 			return data.stopNodeIndex == nextNode;
 		}
-	}
-
-	private int vocIndex(char[] symbols, char patt) {
-		return Arrays.binarySearch(symbols, patt);
 	}
 
 	protected void updateStrings(Collection<String> replaceStrings) {

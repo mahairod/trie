@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
  * @author Антон А. Астафьев {@literal <anton@astafiev.me>} (Anton A. Astafiev)
  * @version 0.2 (2025)
  */
-@State(Scope.Group)
+@State(Scope.Benchmark)
 @Fork(value = 1, warmups = 1)
 @Threads(Threads.MAX)
 @Timeout(time = 60, timeUnit = TimeUnit.SECONDS)
@@ -38,7 +38,9 @@ public class TrieBench {
 	Set<String> wordMapReady;
 	Set<String> wordMapFresh;
 
-	@State(Scope.Group)
+	List<String> bigList;
+
+	@State(Scope.Benchmark)
 	public static class Plan {
 		Trie tr;
 
@@ -68,11 +70,12 @@ public class TrieBench {
 			String fresh = String.copyValueOf(word.toCharArray());
 			wordMapFresh.add(fresh);
 		}
+		bigList = Words.loadStrings();
 	}
 
 	@Benchmark
 	@GroupThreads(3)
-	@Group("TrieSearch")
+//	@Group("TrieSearch")
 	@Warmup(time = 1, iterations = 5)
 	@Measurement(time = 1, iterations = 15)
 	public void benchTrieSearchCycle(Blackhole blackhole, Plan plan) {
@@ -80,15 +83,31 @@ public class TrieBench {
 	}
 
 	@Benchmark
+	@GroupThreads(3)
+//	@Group("TrieSearch")
+	@Warmup(time = 1, iterations = 5)
+	@Measurement(time = 1, iterations = 15)
+	public void benchTrieSearchVocab(Blackhole blackhole, Plan plan) {
+		blackhole.consume(plan.tr.containsAllStrings(bigList));
+	}
+
+	@Benchmark
 	@GroupThreads(2)
-	@Group("HashReady")
+//	@Group("HashReady")
+	public void benchHashReadySearchVocab(Blackhole blackhole) {
+		blackhole.consume(wordMapReady.containsAll(bigList));
+	}
+
+	@Benchmark
+	@GroupThreads(2)
+//	@Group("HashReady")
 	public void benchHashReadySearchCycle(Blackhole blackhole) {
 		blackhole.consume(wordMapReady.containsAll(words));
 	}
 
 	@Benchmark
 	@GroupThreads(2)
-	@Group("HashFresh")
+//	@Group("HashFresh")
 	public void benchHashFreshSearchCycle(Blackhole blackhole) {
 		blackhole.consume(wordMapFresh.containsAll(words));
 	}
