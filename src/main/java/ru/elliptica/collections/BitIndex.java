@@ -59,7 +59,7 @@ public abstract class BitIndex {
 
 	protected void index() {
 		long mask = globalMask;
-		short counter = 0;
+		int counter = 0;
 		int indIndex = 0;
 		for (int pos = Long.numberOfTrailingZeros(mask); mask != 0; mask &= ~(1L << pos), pos = Long.numberOfTrailingZeros(mask) ) {
 			counts[pos] = counter;
