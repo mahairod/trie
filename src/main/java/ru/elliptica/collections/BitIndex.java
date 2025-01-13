@@ -66,7 +66,7 @@ public abstract class BitIndex {
 			long bucket = data[pos];
 			countsInd[indIndex] = counter;
 			dataInd[indIndex] = bucket;
-			counter += Long.bitCount(bucket);
+			counter += (short) Long.bitCount(bucket);
 			indIndex++;
 		}
 	}
