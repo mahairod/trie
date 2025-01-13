@@ -74,7 +74,7 @@ public class BitIndexCompNocond extends BitIndex {
 		for (int pos = Long.numberOfTrailingZeros(mask); mask != 0; mask &= ~(1L << pos), pos = Long.numberOfTrailingZeros(mask) ) {
 			counts[pos+1] = counter;
 			long bucket = data[pos+1];
-			counter += Long.bitCount(bucket);
+			counter += (short) Long.bitCount(bucket);
 		}
 	}
 
