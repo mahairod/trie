@@ -15,9 +15,11 @@ sourceSets {
 	jmh {
 		compileClasspath += main.runtimeClasspath
 		compileClasspath += data.runtimeClasspath
+		runtimeClasspath += data.runtimeClasspath
 	}
 	test {
 		compileClasspath += data.runtimeClasspath
+		runtimeClasspath += data.runtimeClasspath
 	}
 }
 
